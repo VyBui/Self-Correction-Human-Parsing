@@ -11,11 +11,13 @@
 """
 
 import os
-import numpy as np
 import random
-import torch
+
 import cv2.cv2 as cv2
+import numpy as np
+import torch
 from torch.utils import data
+
 from utils.transforms import get_affine_transform
 
 
@@ -79,18 +81,22 @@ class FBDataSet(data.Dataset):
             # Get pose annotation
             parsing_anno = cv2.imread(parsing_anno_path, cv2.IMREAD_GRAYSCALE)
             print("segmentation shape: {}".format(parsing_anno.shape))
+            print("img shape: {}".format(im.shape))
 
             if self.dataset == 'train' or self.dataset == 'trainval':
                 sf = self.scale_factor
                 rf = self.rotation_factor
-                s = s * np.clip(np.random.randn() * rf, -rf * 2, rf * 2) if random.random() <= 0.6 else 0
+                s = s * np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
+                r = np.clip(np.random.randn() * rf, -rf * 2, rf * 2) if random.random() <= 0.6 else 0
 
                 if random.random() <= self.flip_prob:
+                    print("is flip")
                     im = im[:, ::-1, :]
                     parsing_anno = parsing_anno[:, ::-1]
                     person_center[0] = im.shape[1] - person_center[0] - 1
-                    right_idx = [15, 17, 19]
-                    left_idx = [14, 16, 18]
+                    right_idx = [5, 7]
+                    left_idx = [6, 8]
+
                     for i in range(0, 3):
                         right_pos = np.where(parsing_anno == right_idx[i])
                         left_pos = np.where(parsing_anno == left_idx[i])
@@ -98,7 +104,7 @@ class FBDataSet(data.Dataset):
                         parsing_anno[left_pos[0], left_pos[1]] = right_idx[i]
 
         trans = get_affine_transform(person_center, s, r, self.crop_size)
-        input = cv2.warpAffine(
+        input_im = cv2.warpAffine(
             im,
             trans,
             (int(self.crop_size[1]), int(self.crop_size[0])),
@@ -107,7 +113,7 @@ class FBDataSet(data.Dataset):
             borderValue=(0, 0, 0))
 
         if self.transform:
-            input = self.transform(input)
+            input_im = self.transform(input_im)
 
         meta = {
             'name': train_item,
@@ -119,7 +125,7 @@ class FBDataSet(data.Dataset):
         }
 
         if self.dataset == 'val' or self.dataset == 'test':
-            return input, meta
+            return input_im, meta
 
         else:
             label_parsing = cv2.warpAffine(
@@ -131,8 +137,8 @@ class FBDataSet(data.Dataset):
                 borderValue=(255))
 
             label_parsing = torch.from_numpy(label_parsing)
-
-            return input, label_parsing, meta
+            # print("scale input_ims: {}/{}".format(input_im.shape,label_parsing.shape))
+            return input_im, label_parsing, meta
 
 
 class FbDataValSet(data.Dataset):
@@ -182,19 +188,19 @@ class FbDataValSet(data.Dataset):
         person_center, s = self._box2cs([0, 0, w - 1, h - 1])
         r = 0
         trans = get_affine_transform(person_center, s, r, self.crop_size)
-        input = cv2.warpAffine(
+        input_im = cv2.warpAffine(
             im,
             trans,
             (int(self.crop_size[1]), int(self.crop_size[0])),
             flags=cv2.INTER_LINEAR,
             borderMode=cv2.BORDER_CONSTANT,
             borderValue=(0, 0, 0))
-        input = self.transform(input)
-        flip_input = input.flip(dims=[-1])
+        input_im = self.transform(input_im)
+        flip_input_im = input_im.flip(dims=[-1])
         if self.flip:
-            batch_input_im = torch.stack([input, flip_input])
+            batch_input_im = torch.stack([input_im, flip_input_im])
         else:
-            batch_input_im = input
+            batch_input_im = input_im
 
         meta = {
             'name': val_item,

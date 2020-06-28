@@ -19,3 +19,4 @@ bin/
 # ignore tensorflow pretrained model
 *.pb
 *.ckpt*
+/fb_data

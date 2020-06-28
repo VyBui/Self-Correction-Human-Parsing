@@ -1,0 +1,3 @@
+outs:
+- md5: 57cb4dec18f790981b88300b4f0f39e8.dir
+  path: pretrained_model

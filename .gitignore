@@ -20,3 +20,4 @@ bin/
 *.pb
 *.ckpt*
 /fb_data
+/pretrained_model

@@ -19,8 +19,6 @@ from .lovasz_softmax import LovaszSoftmax
 from .kl_loss import KLDivergenceLoss
 from .consistency_loss import ConsistencyLoss
 
-NUM_CLASSES = 20
-
 
 class CriterionAll(nn.Module):
     def __init__(self, use_class_weight=False, ignore_index=255, lambda_1=1, lambda_2=1, lambda_3=1,
@@ -35,6 +33,7 @@ class CriterionAll(nn.Module):
         self.lamda_1 = lambda_1
         self.lamda_2 = lambda_2
         self.lamda_3 = lambda_3
+        print("num classes = {}".format(num_classes))
         self.num_classes = num_classes
 
     def parsing_loss(self, preds, target, cycle_n=None):

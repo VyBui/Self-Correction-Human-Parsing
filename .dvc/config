@@ -1,0 +1,4 @@
+[core]
+    remote = fb_google_drive
+['remote "fb_google_drive"']
+    url = gdrive://18ZKdPI0dXE9sDp3KrcoD3UKoZa1Ki-bU

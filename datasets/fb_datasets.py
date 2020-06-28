@@ -64,6 +64,9 @@ class FBDataSet(data.Dataset):
         im_path = os.path.join(self.root, self.dataset + '_images', train_item + '.jpg')
         parsing_anno_path = os.path.join(self.root, self.dataset + '_segmentations', train_item + '.png')
 
+        print("im path: {}".format(im_path))
+        print("parsing anno path: {}".format(parsing_anno_path))
+
         im = cv2.imread(im_path, cv2.IMREAD_COLOR)
         h, w, _ = im.shape
         parsing_anno = np.zeros((h, w), dtype=np.long)
@@ -75,6 +78,8 @@ class FBDataSet(data.Dataset):
         if self.dataset != 'test':
             # Get pose annotation
             parsing_anno = cv2.imread(parsing_anno_path, cv2.IMREAD_GRAYSCALE)
+            print("segmentation shape: {}".format(parsing_anno.shape))
+
             if self.dataset == 'train' or self.dataset == 'trainval':
                 sf = self.scale_factor
                 rf = self.rotation_factor

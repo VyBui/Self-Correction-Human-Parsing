@@ -21,7 +21,7 @@ from utils.transforms import get_affine_transform
 
 
 class LIPDataSet(data.Dataset):
-    def __init__(self, root, dataset, crop_size=[473, 473], scale_factor=0.25,
+    def __init__(self, root, dataset, crop_size=[64, 64], scale_factor=0.25,
                  rotation_factor=30, ignore_label=255, transform=None):
         self.root = root
         self.aspect_ratio = crop_size[1] * 1.0 / crop_size[0]
@@ -125,7 +125,6 @@ class LIPDataSet(data.Dataset):
                 borderValue=(255))
 
             label_parsing = torch.from_numpy(label_parsing)
-
             return input, label_parsing, meta
 
 

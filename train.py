@@ -25,6 +25,7 @@ from torch.utils import data
 import networks
 import utils.schp as schp
 from datasets.fb_datasets import FBDataSet
+from datasets.datasets import LIPDataSet
 from datasets.target_generation import generate_edge_tensor
 from utils.transforms import BGR2RGB_transform
 from utils.criterion import CriterionAll
@@ -50,9 +51,9 @@ def get_arguments():
     parser.add_argument("--random-mirror", action="store_true")
     parser.add_argument("--random-scale", action="store_true")
     # Training Strategy
-    parser.add_argument("--learning-rate", type=float, default=7e-3)
-    parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--weight-decay", type=float, default=5e-4)
+    parser.add_argument("--learning-rate", type=float, default=0.0025)
+    parser.add_argument("--momentum", type=float, default=0.09)
+    parser.add_argument("--weight-decay", type=float, default=5e-5)
     parser.add_argument("--gpu", type=str, default='0')
     parser.add_argument("--start-epoch", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=150)
@@ -63,9 +64,9 @@ def get_arguments():
     parser.add_argument("--schp-start", type=int, default=100, help='schp start epoch')
     parser.add_argument("--cycle-epochs", type=int, default=10, help='schp cyclical epoch')
     parser.add_argument("--schp-restore", type=str, default='./log/schp_checkpoint.pth.tar')
-    parser.add_argument("--lambda-s", type=float, default=1, help='segmentation loss weight')
-    parser.add_argument("--lambda-e", type=float, default=1, help='edge loss weight')
-    parser.add_argument("--lambda-c", type=float, default=0.1, help='segmentation-edge consistency loss weight')
+    parser.add_argument("--lambda-s", type=float, default=0.1, help='segmentation loss weight')
+    parser.add_argument("--lambda-e", type=float, default=0.1, help='edge loss weight')
+    parser.add_argument("--lambda-c", type=float, default=0.01, help='segmentation-edge consistency loss weight')
     return parser.parse_args()
 
 
@@ -144,10 +145,10 @@ def main():
                                  std=IMAGE_STD),
         ])
 
-    train_dataset = FBDataSet(args.data_dir, 'train', crop_size=input_size, transform=transform)
+    train_dataset = LIPDataSet(args.data_dir, 'train', crop_size=input_size, transform=transform)
     print("batch size: {}".format(args.batch_size * len(gpus)))
     train_loader = data.DataLoader(train_dataset, batch_size=args.batch_size * len(gpus),
-                                   num_workers=1, shuffle=True, pin_memory=True, drop_last=True)
+                                   num_workers=4, shuffle=True, pin_memory=True, drop_last=True)
     print('Total training samples: {}'.format(len(train_dataset)))
 
     # Optimizer Initialization
@@ -170,11 +171,18 @@ def main():
             i_iter += len(train_loader) * epoch
 
             images, labels, _ = batch
+
+            print("before going to models")
+            print(images.shape)
+            print(labels.shape)
+
             labels = labels.cuda(non_blocking=True)
 
             edges = generate_edge_tensor(labels)
             labels = labels.type(torch.cuda.LongTensor)
             edges = edges.type(torch.cuda.LongTensor)
+
+
 
             preds = model(images)
 

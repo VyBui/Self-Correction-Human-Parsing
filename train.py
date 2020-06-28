@@ -45,7 +45,7 @@ def get_arguments():
     parser.add_argument("--data-dir", type=str, default='./data/LIP')
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--input-size", type=str, default='473,473')
-    parser.add_argument("--num-classes", type=int, default=20)
+    parser.add_argument("--num-classes", type=int, default=11)
     parser.add_argument("--ignore-label", type=int, default=255)
     parser.add_argument("--random-mirror", action="store_true")
     parser.add_argument("--random-scale", action="store_true")
@@ -145,8 +145,9 @@ def main():
         ])
 
     train_dataset = FBDataSet(args.data_dir, 'train', crop_size=input_size, transform=transform)
+    print("batch size: {}".format(args.batch_size * len(gpus)))
     train_loader = data.DataLoader(train_dataset, batch_size=args.batch_size * len(gpus),
-                                   num_workers=16, shuffle=True, pin_memory=True, drop_last=True)
+                                   num_workers=1, shuffle=True, pin_memory=True, drop_last=True)
     print('Total training samples: {}'.format(len(train_dataset)))
 
     # Optimizer Initialization

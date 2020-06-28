@@ -24,7 +24,7 @@ from torch.utils import data
 
 import networks
 import utils.schp as schp
-from datasets.datasets import LIPDataSet
+from datasets.fb_datasets import FBDataSet
 from datasets.target_generation import generate_edge_tensor
 from utils.transforms import BGR2RGB_transform
 from utils.criterion import CriterionAll
@@ -53,7 +53,7 @@ def get_arguments():
     parser.add_argument("--learning-rate", type=float, default=7e-3)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight-decay", type=float, default=5e-4)
-    parser.add_argument("--gpu", type=str, default='0,1,2')
+    parser.add_argument("--gpu", type=str, default='0')
     parser.add_argument("--start-epoch", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--eval-epochs", type=int, default=10)
@@ -144,7 +144,7 @@ def main():
                                  std=IMAGE_STD),
         ])
 
-    train_dataset = LIPDataSet(args.data_dir, 'train', crop_size=input_size, transform=transform)
+    train_dataset = FBDataSet(args.data_dir, 'train', crop_size=input_size, transform=transform)
     train_loader = data.DataLoader(train_dataset, batch_size=args.batch_size * len(gpus),
                                    num_workers=16, shuffle=True, pin_memory=True, drop_last=True)
     print('Total training samples: {}'.format(len(train_dataset)))

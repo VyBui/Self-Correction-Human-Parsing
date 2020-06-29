@@ -58,7 +58,7 @@ def get_arguments():
     parser.add_argument("--learning-rate", type=float, default=7e-3)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--weight-decay", type=float, default=5e-4)
-    parser.add_argument("--gpu", type=str, default='0')
+    parser.add_argument("--gpu", type=str, default='0, 1')
     parser.add_argument("--start-epoch", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--eval-epochs", type=int, default=1)

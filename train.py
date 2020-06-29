@@ -18,15 +18,19 @@ import argparse
 
 import torch
 import torch.optim as optim
+import torchvision
 import torchvision.transforms as transforms
 import torch.backends.cudnn as cudnn
 from torch.utils import data
+from torch.utils.tensorboard import SummaryWriter
+
 
 import networks
 import utils.schp as schp
 from datasets.fb_datasets import FBDataSet
 from datasets.datasets import LIPDataSet
 from datasets.target_generation import generate_edge_tensor
+from utils.tensorboard_visualize import matplotlib_imshow, plot_classes_preds
 from utils.transforms import BGR2RGB_transform
 from utils.criterion import CriterionAll
 from utils.encoding import DataParallelModel, DataParallelCriterion
@@ -57,7 +61,7 @@ def get_arguments():
     parser.add_argument("--gpu", type=str, default='0')
     parser.add_argument("--start-epoch", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=150)
-    parser.add_argument("--eval-epochs", type=int, default=10)
+    parser.add_argument("--eval-epochs", type=int, default=1)
     parser.add_argument("--imagenet-pretrain", type=str, default='./pretrain_model/resnet101-imagenet.pth')
     parser.add_argument("--log-dir", type=str, default='./log')
     parser.add_argument("--model-restore", type=str, default='./log/checkpoint.pth.tar')
@@ -102,6 +106,7 @@ def main():
     print('image mean: {}'.format(IMAGE_MEAN))
     print('image std: {}'.format(IMAGE_STD))
     print('input space:{}'.format(INPUT_SPACE))
+    writer = SummaryWriter('board/fb_models')
 
     restore_from = args.model_restore
     if os.path.exists(restore_from):
@@ -113,6 +118,7 @@ def main():
     SCHP_AugmentCE2P = networks.init_model(args.arch, num_classes=args.num_classes, pretrained=args.imagenet_pretrain)
     schp_model = DataParallelModel(SCHP_AugmentCE2P)
     schp_model.cuda()
+    # writer.add_graph(schp_model)
 
     if os.path.exists(args.schp_restore):
         print('Resuming schp checkpoint from {}'.format(args.schp_restore))
@@ -146,7 +152,6 @@ def main():
         ])
 
     train_dataset = LIPDataSet(args.data_dir, 'train', crop_size=input_size, transform=transform)
-    print("batch size: {}".format(args.batch_size * len(gpus)))
     train_loader = data.DataLoader(train_dataset, batch_size=args.batch_size * len(gpus),
                                    num_workers=4, shuffle=True, pin_memory=True, drop_last=True)
     print('Total training samples: {}'.format(len(train_dataset)))
@@ -162,6 +167,7 @@ def main():
 
     total_iters = args.epochs * len(train_loader)
     start = timeit.default_timer()
+
     for epoch in range(start_epoch, args.epochs):
         lr_scheduler.step(epoch=epoch)
         lr = lr_scheduler.get_lr()[0]
@@ -176,7 +182,27 @@ def main():
             edges = generate_edge_tensor(labels)
             labels = labels.type(torch.cuda.LongTensor)
             edges = edges.type(torch.cuda.LongTensor)
+
+            # create grid of images
+            img_grid = torchvision.utils.make_grid(images)
+            # show images
+            matplotlib_imshow(img_grid, one_channel=True)
+            # write to tensorboard
+            writer.add_image('image inputs', img_grid)
+
             preds = model(images)
+
+            # print(preds[0][0].shape)
+            # list_predictions = []
+            # for i in range(args.num_classes):
+            #     channel_of_prediction = preds[:, i:(i + 1), :, :] * (20 * (i + 1))
+            #     list_predictions.append(channel_of_prediction)
+            #
+            # sum_of_predictions = list_predictions[0]
+            # for index in range(1, args.num_classes):
+            #     sum_of_predictions = sum_of_predictions.add(list_predictions[index])
+            #
+            # print(sum_of_predictions.shape)
 
             # Online Self Correction Cycle with Label Refinement
             if cycle_n >= 1:
@@ -202,6 +228,19 @@ def main():
             if i_iter % 100 == 0:
                 print('iter = {} of {} completed, lr = {}, loss = {}'.format(i_iter, total_iters, lr,
                                                                              loss.data.cpu().numpy()))
+
+                # img_grid = torchvision.utils.make_grid(preds)
+                # matplotlib_imshow(img_grid, one_channel=True)
+                # writer.add_image('fb prediction', img_grid)
+
+                # for pred in preds:
+                #     print(pred[0].shape)
+                #     print(pred[1].shape)
+                #     writer.add_images('prediction', pred[0], i_iter)
+                writer.add_scalar('training loss',
+                                  loss.data.cpu().numpy(),
+                                  epoch * len(train_loader) + i_iter)
+
         if (epoch + 1) % (args.eval_epochs) == 0:
             schp.save_schp_checkpoint({
                 'epoch': epoch + 1,

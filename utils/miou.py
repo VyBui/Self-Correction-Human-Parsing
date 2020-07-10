@@ -6,9 +6,7 @@ from collections import OrderedDict
 from PIL import Image as PILImage
 from utils.transforms import transform_parsing
 
-LABELS = ['Background', 'Hat', 'Hair', 'Glove', 'Sunglasses', 'Upper-clothes', 'Dress', 'Coat', \
-          'Socks', 'Pants', 'Jumpsuits', 'Scarf', 'Skirt', 'Face', 'Left-arm', 'Right-arm', 'Left-leg',
-          'Right-leg', 'Left-shoe', 'Right-shoe']
+LABELS = ['Background', 'Top', 'Bottom', 'Shoes', 'accessories', 'skin_right_arm', 'skin_left_arm', 'skin_right_leg', 'skin_left_leg', 'hair', 'skin_face_neck']
 
 
 # LABELS = ['Background', 'Head', 'Torso', 'Upper Arms', 'Lower Arms', 'Upper Legs', 'Lower Legs']

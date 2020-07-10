@@ -66,6 +66,7 @@ def get_arguments():
     parser.add_argument("--log-dir", type=str, default='./log')
     parser.add_argument("--model-restore", type=str, default='./log/checkpoint.pth.tar')
     parser.add_argument("--schp-start", type=int, default=100, help='schp start epoch')
+
     parser.add_argument("--cycle-epochs", type=int, default=10, help='schp cyclical epoch')
     parser.add_argument("--schp-restore", type=str, default='./log/schp_checkpoint.pth.tar')
     parser.add_argument("--lambda-s", type=float, default=1, help='segmentation loss weight')

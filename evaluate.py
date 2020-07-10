@@ -24,6 +24,7 @@ import torch.backends.cudnn as cudnn
 
 import networks
 from datasets.datasets import LIPDataValSet
+from datasets.fb_datasets import FbDataValSet
 from utils.miou import compute_mean_ioU
 from utils.transforms import BGR2RGB_transform
 from utils.transforms import transform_parsing
@@ -43,13 +44,13 @@ def get_arguments():
     parser.add_argument("--data-dir", type=str, default='./data/LIP')
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--input-size", type=str, default='473,473')
-    parser.add_argument("--num-classes", type=int, default=20)
+    parser.add_argument("--num-classes", type=int, default=11)
     parser.add_argument("--ignore-label", type=int, default=255)
     parser.add_argument("--random-mirror", action="store_true")
     parser.add_argument("--random-scale", action="store_true")
     # Evaluation Preference
     parser.add_argument("--log-dir", type=str, default='./log')
-    parser.add_argument("--model-restore", type=str, default='./log/checkpoint.pth.tar')
+    parser.add_argument("--model-restore", type=str, default='./log/checkpoint_150.pth.tar')
     parser.add_argument("--gpu", type=str, default='0', help="choose gpu device.")
     parser.add_argument("--save-results", action="store_true", help="whether to save the results.")
     parser.add_argument("--flip", action="store_true", help="random flip during the test.")
@@ -82,7 +83,7 @@ def get_palette(num_cls):
 
 
 def multi_scale_testing(model, batch_input_im, crop_size=[473, 473], flip=True, multi_scales=[1]):
-    flipped_idx = (15, 14, 17, 16, 19, 18)
+    flipped_idx = (6, 5, 8, 7)
     if len(batch_input_im.shape) > 4:
         batch_input_im = batch_input_im.squeeze()
     if len(batch_input_im.shape) == 3:
@@ -153,7 +154,7 @@ def main():
         ])
 
     # Data loader
-    lip_test_dataset = LIPDataValSet(args.data_dir, 'val', crop_size=input_size, transform=transform, flip=args.flip)
+    lip_test_dataset = FbDataValSet(args.data_dir, 'val', crop_size=input_size, transform=transform, flip=args.flip)
     num_samples = len(lip_test_dataset)
     print('Totoal testing sample numbers: {}'.format(num_samples))
     testloader = data.DataLoader(lip_test_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=True)
@@ -169,7 +170,7 @@ def main():
     model.cuda()
     model.eval()
 
-    sp_results_dir = os.path.join(args.log_dir, 'sp_results')
+    sp_results_dir = os.path.join(args.log_dir, 'sp_results_150')
     if not os.path.exists(sp_results_dir):
         os.makedirs(sp_results_dir)
 
@@ -191,15 +192,18 @@ def main():
             centers[idx, :] = c
             parsing, logits = multi_scale_testing(model, image.cuda(), crop_size=input_size, flip=args.flip,
                                                   multi_scales=multi_scales)
-            if args.save_results:
-                parsing_result = transform_parsing(parsing, c, s, w, h, input_size)
-                parsing_result_path = os.path.join(sp_results_dir, im_name + '.png')
-                output_im = PILImage.fromarray(np.asarray(parsing_result, dtype=np.uint8))
-                output_im.putpalette(palette)
-                output_im.save(parsing_result_path)
+
+            # if args.save_results:
+            parsing_result = transform_parsing(parsing, c, s, w, h, input_size)
+            parsing_result_path = os.path.join(sp_results_dir, im_name + '.png')
+            print("save result to {}".format(parsing_result_path))
+            output_im = PILImage.fromarray(np.asarray(parsing_result, dtype=np.uint8))
+            output_im.putpalette(palette)
+            output_im.save(parsing_result_path)
 
             parsing_preds.append(parsing)
-    assert len(parsing_preds) == num_samples
+
+    assert (len(parsing_preds) * 2) == num_samples
     mIoU = compute_mean_ioU(parsing_preds, scales, centers, args.num_classes, args.data_dir, input_size)
     print(mIoU)
     return

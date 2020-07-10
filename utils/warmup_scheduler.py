@@ -37,7 +37,7 @@ class SGDRScheduler(_LRScheduler):
     """ Consine annealing with warm up and restarts.
     Proposed in `SGDR: Stochastic Gradient Descent with Warm Restarts`.
     """
-    def __init__(self, optimizer, total_epoch=150, start_cyclical=100, cyclical_base_lr=7e-4, cyclical_epoch=10, eta_min=0, warmup_epoch=10, last_epoch=-1):
+    def __init__(self, optimizer, total_epoch=150, start_cyclical=100, cyclical_base_lr=7e-4, cyclical_epoch=10, eta_min=0.0, warmup_epoch=10, last_epoch=-1):
         self.total_epoch = total_epoch
         self.start_cyclical = start_cyclical
         self.cyclical_epoch = cyclical_epoch

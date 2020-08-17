@@ -142,7 +142,8 @@ class FBDataSet(data.Dataset):
 
 
 class FbDataValSet(data.Dataset):
-    def __init__(self, root, dataset='val', crop_size=None, transform=None, flip=False):
+    def __init__(self, root, dataset='val', crop_size=None, transform=None,
+                 flip=False):
         if crop_size is None:
             crop_size = [512, 512]
         self.root = root
@@ -155,6 +156,7 @@ class FbDataValSet(data.Dataset):
         self.crop_size = np.asarray(crop_size)
 
         list_path = os.path.join(self.root, self.dataset + '_id.txt')
+
         val_list = [i_id.strip() for i_id in open(list_path)]
 
         self.val_list = val_list

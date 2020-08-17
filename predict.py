@@ -2,9 +2,9 @@
 # -*- encoding: utf-8 -*-
 
 """
-@Author  :   Peike Li
+@Author  :   Vy Bui
 @Contact :   peike.li@yahoo.com
-@File    :   evaluate.py
+@File    :   predict.py
 @Time    :   8/4/19 3:36 PM
 @Desc    :
 @License :   This source code is licensed under the license found in the
@@ -41,7 +41,7 @@ def get_arguments():
     parser.add_argument("--arch", type=str, default='resnet101')
     # Data Preference
     parser.add_argument("--data-dir", type=str, default='./data/LIP')
-    parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--input-size", type=str, default='473,473')
     parser.add_argument("--num-classes", type=int, default=11)
     parser.add_argument("--ignore-label", type=int, default=255)
@@ -55,6 +55,56 @@ def get_arguments():
     parser.add_argument("--flip", action="store_true", help="random flip during the test.")
     parser.add_argument("--multi-scales", type=str, default='1', help="multiple scales during the test")
     return parser.parse_args()
+
+
+SCHP_MAPPING = {
+    'Background': (0, 0, 0),
+    'Bag': (0, 64, 0),
+    'Belt': (64, 0, 0),
+    'Dress': (128, 128, 128),
+    'Face': (192, 128, 0),
+    'Hair': (0, 128, 0),
+    'Hat': (128, 0, 0),
+    'Left-arm': (64, 128, 128),
+    'Left-leg': (64, 0, 128),
+    'Left-shoe': (192, 0, 0),
+    'Pants': (0, 128, 128),
+    'Right-arm': (192, 128, 128),
+    'Right-leg': (192, 0, 128),
+    'Right-shoe': (64, 128, 0),
+    'Scarf': (128, 64, 0),
+    'Skirt': (128, 0, 128),
+    'Sunglasses': (128, 128, 0),
+    'Upper-clothes': (0, 0, 128)
+}
+
+SCHP_TO_SMEX_MAPPING = {
+    (0, 0, 0): 0,  # Background
+    (0, 64, 0): 4,  # Bag => Background
+    (64, 0, 0): 4,  # Belt => Background
+    (128, 128, 128): 1,  # Dress => Top
+    (192, 128, 0): 10,  # Face
+    (0, 128, 0): 9,  # Hair
+    (128, 0, 0): 9,  # Hat => Hair
+    (64, 128, 128): 6,  # Left-arm => Right-arm
+    (64, 0, 128): 8,  # Left-leg => Right-leg
+    (192, 0, 0): 3,  # Left-shoe => Right-leg
+    (0, 128, 128): 2,  # Pants => Bottoms
+    (192, 128, 128): 5,  # Right-arm => Left-arm
+    (192, 0, 128): 7,  # Right-leg => Left-leg
+    (64, 128, 0): 3,  # Right-shoe => Left-leg
+    (128, 64, 0): 4,  # Scarf => Background
+    (128, 0, 128): 2,  # Skirt => Bottoms
+    (128, 128, 0): 4,  # Sunglasses => Face
+    (0, 0, 128): 1,  # Upper-clothes => Tops
+}
+
+                        # Background  # Tops      # Bottom    # Shoes     # accessories
+SMEX_LABEL_COLOUR = [(0, 0, 0), (35, 35, 125), (255, 0, 255), (125, 35, 35), (70, 70, 70),
+                     # Skin right arm # Skin left arm # Skin right leg # Skin left leg
+                     (0, 255, 0), (0, 0, 255), (0, 255, 255), (85, 255, 170),
+                    #hair, #skin_face_neck
+                    (35, 125, 200), (255, 255, 0)]
 
 
 def get_palette(num_cls):
@@ -78,6 +128,12 @@ def get_palette(num_cls):
             palette[j * 3 + 2] |= (((lab >> 2) & 1) << (7 - i))
             i += 1
             lab >>= 3
+    return palette
+
+def CONVERT_SCHP_TO_SMEX(palette):
+    for i in range(0, len(palette), 3):
+        idx = SCHP_TO_SMEX_MAPPING[tuple(palette[i:i+3])]
+        palette[i:i+3] = SMEX_LABEL_COLOUR[idx]
     return palette
 
 
@@ -113,7 +169,7 @@ def multi_scale_testing(model, batch_input_im, crop_size=[473, 473], flip=True, 
 
 
 def main():
-    """Create the model and start the evaluation process."""
+    """Create the model and start the prediction process."""
     args = get_arguments()
     multi_scales = [float(i) for i in args.multi_scales.split(',')]
     gpus = [int(i) for i in args.gpu.split(',')]
@@ -127,7 +183,8 @@ def main():
     h, w = map(int, args.input_size.split(','))
     input_size = [h, w]
 
-    model = networks.init_model(args.arch, num_classes=args.num_classes, pretrained=None)
+    model = networks.init_model(args.arch, num_classes=args.num_classes,
+                                pretrained=None)
 
     IMAGE_MEAN = model.mean
     IMAGE_STD = model.std
@@ -153,10 +210,13 @@ def main():
         ])
 
     # Data loader
-    lip_test_dataset = FbDataValSet(args.data_dir, 'val', crop_size=input_size, transform=transform, flip=args.flip)
+    lip_test_dataset = FbDataValSet(args.data_dir, 'val',
+                                    crop_size=input_size,
+                                    transform=transform, flip=args.flip)
     num_samples = len(lip_test_dataset)
     print('total testing sample numbers: {}'.format(num_samples))
-    testloader = data.DataLoader(lip_test_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=True)
+    testloader = data.DataLoader(lip_test_dataset, batch_size=args.batch_size,
+                                 shuffle=False, pin_memory=True)
 
     # Load model weight
     state_dict = torch.load(args.model_restore)['state_dict']
@@ -169,43 +229,46 @@ def main():
     model.cuda()
     model.eval()
 
-    sp_results_dir = os.path.join(args.log_dir, 'sp_results_150')
+    sp_results_dir = os.path.join(args.log_dir, 'schp_fb')
     if not os.path.exists(sp_results_dir):
         os.makedirs(sp_results_dir)
 
     palette = get_palette(20)
+    # palette = CONVERT_SCHP_TO_SMEX(palette)
     parsing_preds = []
     scales = np.zeros((num_samples, 2), dtype=np.float32)
     centers = np.zeros((num_samples, 2), dtype=np.int32)
     with torch.no_grad():
         for idx, batch in enumerate(tqdm(testloader)):
-            image, meta = batch
-            if (len(image.shape) > 4):
-                image = image.squeeze()
-            im_name = meta['name'][0]
-            c = meta['center'].numpy()[0]
-            s = meta['scale'].numpy()[0]
-            w = meta['width'].numpy()[0]
-            h = meta['height'].numpy()[0]
-            scales[idx, :] = s
-            centers[idx, :] = c
-            parsing, logits = multi_scale_testing(model, image.cuda(), crop_size=input_size, flip=args.flip,
-                                                  multi_scales=multi_scales)
+            try:
+                image, meta = batch
+                if (len(image.shape) > 4):
+                    image = image.squeeze()
+                im_name = meta['name'][0]
+                c = meta['center'].numpy()[0]
+                s = meta['scale'].numpy()[0]
+                w = meta['width'].numpy()[0]
+                h = meta['height'].numpy()[0]
+                scales[idx, :] = s
+                centers[idx, :] = c
+                parsing, logits = multi_scale_testing(model, image.cuda(),
+                                                      crop_size=input_size,
+                                                      flip=args.flip,
+                                                      multi_scales=multi_scales)
 
-            # if args.save_results:
-            parsing_result = transform_parsing(parsing, c, s, w, h, input_size)
-            parsing_result_path = os.path.join(sp_results_dir, im_name + '.png')
-            print("save result to {}".format(parsing_result_path))
-            output_im = PILImage.fromarray(np.asarray(parsing_result, dtype=np.uint8))
-            output_im.putpalette(palette)
-            output_im.save(parsing_result_path)
+                # if args.save_results:
+                parsing_result = transform_parsing(parsing, c, s, w, h, input_size)
+                parsing_result_path = os.path.join(sp_results_dir,
+                                                   im_name + '.png')
+                print("save result to {}".format(parsing_result_path))
+                output_im = PILImage.fromarray(
+                    np.asarray(parsing_result, dtype=np.uint8))
+                output_im.putpalette(palette)
+                output_im.save(parsing_result_path)
 
-            parsing_preds.append(parsing)
-
-    assert (len(parsing_preds) * 2) == num_samples
-    mIoU = compute_mean_ioU(parsing_preds, scales, centers, args.num_classes, args.data_dir, input_size)
-    print(mIoU)
-    return
+                parsing_preds.append(parsing)
+            except:
+                continue
 
 
 if __name__ == '__main__':

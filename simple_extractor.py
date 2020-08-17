@@ -88,6 +88,63 @@ def get_palette(num_cls):
     return palette
 
 
+SCHP_MAPPING = {
+    'Background': (0, 0, 0),
+    'Bag': (0, 64, 0),
+    'Belt': (64, 0, 0),
+    'Dress': (128, 128, 128),
+    'Face': (192, 128, 0),
+    'Hair': (0, 128, 0),
+    'Hat': (128, 0, 0),
+    'Left-arm': (64, 128, 128),
+    'Left-leg': (64, 0, 128),
+    'Left-shoe': (192, 0, 0),
+    'Pants': (0, 128, 128),
+    'Right-arm': (192, 128, 128),
+    'Right-leg': (192, 0, 128),
+    'Right-shoe': (64, 128, 0),
+    'Scarf': (128, 64, 0),
+    'Skirt': (128, 0, 128),
+    'Sunglasses': (128, 128, 0),
+    'Upper-clothes': (0, 0, 128)
+}
+
+SCHP_TO_SMEX_MAPPING = {
+    (0, 0, 0): 0,  # Background
+    (0, 64, 0): 4,  # Bag => Background
+    (64, 0, 0): 4,  # Belt => Background
+    (128, 128, 128): 1,  # Dress => Top
+    (192, 128, 0): 10,  # Face
+    (0, 128, 0): 9,  # Hair
+    (128, 0, 0): 9,  # Hat => Hair
+    (64, 128, 128): 6,  # Left-arm => Right-arm
+    (64, 0, 128): 8,  # Left-leg => Right-leg
+    (192, 0, 0): 3,  # Left-shoe => Right-leg
+    (0, 128, 128): 2,  # Pants => Bottoms
+    (192, 128, 128): 5,  # Right-arm => Left-arm
+    (192, 0, 128): 7,  # Right-leg => Left-leg
+    (64, 128, 0): 3,  # Right-shoe => Left-leg
+    (128, 64, 0): 4,  # Scarf => Background
+    (128, 0, 128): 2,  # Skirt => Bottoms
+    (128, 128, 0): 4,  # Sunglasses => Face
+    (0, 0, 128): 1,  # Upper-clothes => Tops
+}
+
+                        # Background  # Tops      # Bottom    # Shoes     # accessories
+SMEX_LABEL_COLOUR = [(0, 0, 0), (35, 35, 125), (255, 0, 255), (125, 35, 35), (70, 70, 70),
+                     # Skin right arm # Skin left arm # Skin right leg # Skin left leg
+                     (0, 255, 0), (0, 0, 255), (0, 255, 255), (85, 255, 170),
+                    #hair, #skin_face_neck
+                    (35, 125, 200), (255, 255, 0)]
+
+
+def CONVERT_SCHP_TO_SMEX(palette):
+    for i in range(0, len(palette), 3):
+        idx = SCHP_TO_SMEX_MAPPING[tuple(palette[i:i+3])]
+        palette[i:i+3] = SMEX_LABEL_COLOUR[idx]
+    return palette
+
+
 def main():
     args = get_arguments()
 
@@ -124,6 +181,7 @@ def main():
         os.makedirs(args.output_dir)
 
     palette = get_palette(num_classes)
+    palette = CONVERT_SCHP_TO_SMEX(palette)
     with torch.no_grad():
         for idx, batch in enumerate(tqdm(dataloader)):
             image, meta = batch
